@@ -1,20 +1,15 @@
 package com.nged.activemq;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.apache.activemq.ActiveMQPrefetchPolicy;
 import org.apache.activemq.RedeliveryPolicy;
-import org.apache.activemq.command.ActiveMQQueue;
-import org.apache.activemq.command.ActiveMQTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.connection.JmsTransactionManager;
 import org.springframework.jms.core.JmsTemplate;
+import org.springframework.transaction.jta.JtaTransactionManager;
 
-import javax.jms.Queue;
-import javax.jms.Session;
-import javax.jms.Topic;
 
 import static javax.jms.Session.CLIENT_ACKNOWLEDGE;
 
@@ -72,10 +67,8 @@ public class ActiveMQConfig {
     public ActiveMQConnectionFactory activeMQConnectionFactory(@Value("${activemq.url}")String url,@Value("${activemq.user}")String userName,@Value("${activemq.password}")String password, RedeliveryPolicy redeliveryPolicy){
         ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(userName,password,url);
         factory.setRedeliveryPolicy(redeliveryPolicy);
-       /* factory.setOptimizeAcknowledge(false);
-        ActiveMQPrefetchPolicy prefetchPolicy = new ActiveMQPrefetchPolicy();
-        prefetchPolicy.setAll(1);
-        factory.setPrefetchPolicy(prefetchPolicy);*/
+
+
 
         System.out.println(factory+"\\"+factory.getClass().getClassLoader());
         return factory;
@@ -101,56 +94,80 @@ public class ActiveMQConfig {
      */
     @Bean(name = "jmsQueueListener")
     public DefaultJmsListenerContainerFactory jmsQueueListenerContainerFactory(ActiveMQConnectionFactory activeMQConnectionFactory) {
-        DefaultJmsListenerContainerFactory factory =
+        DefaultJmsListenerContainerFactory containerFactory =
                 new DefaultJmsListenerContainerFactory();
-        factory.setConnectionFactory(activeMQConnectionFactory);
+        containerFactory.setConnectionFactory(activeMQConnectionFactory);
         //设置连接数
-        factory.setConcurrency("1-10");
+        containerFactory.setConcurrency("2");
         //重连间隔时间
-        factory.setRecoveryInterval(2000L);
-        factory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
-
-        return factory;
+        containerFactory.setRecoveryInterval(2000L);
+        containerFactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
+        containerFactory.setClientId("queue1");
+        return containerFactory;
     }
 
     @Bean(name = "jmsQueueWithTransactionListener")
     public DefaultJmsListenerContainerFactory jmsQueueListenerContainerFactoryWithTransaction(ActiveMQConnectionFactory activeMQConnectionFactory,JmsTransactionManager jmsTransactionManager) {
-        DefaultJmsListenerContainerFactory factory =
+        DefaultJmsListenerContainerFactory containerFactory =
                 new DefaultJmsListenerContainerFactory();
-        factory.setConnectionFactory(activeMQConnectionFactory);
+        containerFactory.setConnectionFactory(activeMQConnectionFactory);
         //设置连接数
-        factory.setConcurrency("1-10");
+        containerFactory.setConcurrency("1");
         //重连间隔时间
-        factory.setRecoveryInterval(1000L);
-        factory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
+        containerFactory.setRecoveryInterval(1000L);
+        containerFactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
         //对listener绑定事务管理
-        factory.setTransactionManager(jmsTransactionManager);
+        containerFactory.setTransactionManager(jmsTransactionManager);
 
-        return factory;
+        containerFactory.setClientId("queue01");
+        return containerFactory;
     }
 
     @Bean(name = "jmsTopicListener")
     public DefaultJmsListenerContainerFactory jmsTopicListenerContainerFactory(ActiveMQConnectionFactory activeMQConnectionFactory){
-        DefaultJmsListenerContainerFactory topicfactory = new DefaultJmsListenerContainerFactory();
-        topicfactory.setPubSubDomain(true);
-        topicfactory.setClientId("topic-A");
-        topicfactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
-        topicfactory.setConnectionFactory(activeMQConnectionFactory);
-        return topicfactory;
+        DefaultJmsListenerContainerFactory containerFactory = new DefaultJmsListenerContainerFactory();
+        containerFactory.setPubSubDomain(true);
+
+        containerFactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
+        containerFactory.setConnectionFactory(activeMQConnectionFactory);
+        return containerFactory;
     }
 
     @Bean(name = "jmsTopicListenerWithTransaction")
     public DefaultJmsListenerContainerFactory jmsTopicListenerContainerFactoryWithTransaction(ActiveMQConnectionFactory activeMQConnectionFactory,JmsTransactionManager jmsTransactionManager){
-        DefaultJmsListenerContainerFactory topicfactory = new DefaultJmsListenerContainerFactory();
-        topicfactory.setPubSubDomain(true);
-        topicfactory.setClientId("topic-A");
-        topicfactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
-        topicfactory.setConnectionFactory(activeMQConnectionFactory);
-        topicfactory.setTransactionManager(jmsTransactionManager);
-        return topicfactory;
+        DefaultJmsListenerContainerFactory containerFactory = new DefaultJmsListenerContainerFactory();
+        containerFactory.setPubSubDomain(true);
+        containerFactory.setSessionTransacted(true);
+        containerFactory.setSubscriptionDurable(true);
+        containerFactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
+        containerFactory.setConnectionFactory(activeMQConnectionFactory);
+        containerFactory.setTransactionManager(jmsTransactionManager);
+        containerFactory.setClientId("topic1");
+        return containerFactory;
     }
 
 
+    @Bean(name = "jmsTopicListenerWithDbTransaction")
+    public DefaultJmsListenerContainerFactory jmsTopicListenerWithDbTransaction(ActiveMQConnectionFactory activeMQConnectionFactory,JtaTransactionManager jtaTransactionManager){
+        DefaultJmsListenerContainerFactory containerFactory = new DefaultJmsListenerContainerFactory();
+        containerFactory.setPubSubDomain(true);
+
+        containerFactory.setSessionAcknowledgeMode(CLIENT_ACKNOWLEDGE);
+        containerFactory.setConnectionFactory(activeMQConnectionFactory);
+        //开启外部事务
+        containerFactory.setTransactionManager(jtaTransactionManager);
+
+        return containerFactory;
+    }
+
+
+
+
+    //外部事务管理器
+    @Bean
+    public JtaTransactionManager jtaTransactionManager(){
+        return new JtaTransactionManager();
+    }
 
 
 

@@ -1,11 +1,10 @@
 package com.nged.activemq;
 
-import org.apache.activemq.ActiveMQQueueSession;
+
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
 import javax.jms.JMSException;
-import javax.jms.Message;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import java.util.logging.Logger;
@@ -33,13 +32,13 @@ public class ActiveMQConsumer {
     }
 
     //带事务管理的队列消费
-    @JmsListener(destination = "test.queueTransaction")
+    @JmsListener(destination = "test.queueTransaction",containerFactory = "jmsQueueWithTransactionListener")
     public void queueTransactionTest(final TextMessage message, Session session) throws JMSException {
 
             logger.info(message.getText());
             System.out.println(Thread.currentThread().getName()+"处理消息"+message.getText());
             message.acknowledge();
-            session.rollback();
+
             //message.acknowledge();//使用手动签收模式，需要手动的调用，如果不在catch中调用session.recover()消息只会在重启服务后重发
 
 
@@ -47,17 +46,17 @@ public class ActiveMQConsumer {
 
 
 
-
-
-    @JmsListener(destination = "topic1",containerFactory = "jmsTopicListenerWithTransaction")
-    public void topicHandler(final TextMessage message, Session session){
+    //
+    @JmsListener(destination = "topic2",containerFactory = "jmsTopicListenerWithDbTransaction")
+    public void topicHandler(final TextMessage message, Session session) throws JMSException {
 
         try {
             System.out.println("handler topic message"+message.getText());
-            message.acknowledge();
-            //session.rollback();
-        } catch (JMSException e) {
+
+
+        }catch (Exception e){
             e.printStackTrace();
+            session.rollback();
         }
 
     }

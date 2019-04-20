@@ -1,6 +1,7 @@
 package com.nged.activemq;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.ActiveMQSession;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.junit.Test;
@@ -11,9 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.annotation.Resource;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.Queue;
+import javax.jms.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -23,6 +22,7 @@ public class ActivemqApplicationTests {
     private ActiveMQProducer producer;
     @Resource
     private ConnectionFactory factory;
+
 
 
     @Test
@@ -45,9 +45,12 @@ public class ActivemqApplicationTests {
         producer.sendMessage(queue,"hello");
     }
     @Test
-    public void testQueueWithTransactionSuccess(){
+    public void testQueueWithTransactionSuccess() throws InterruptedException, JMSException {
         ActiveMQQueue queue = new ActiveMQQueue("test.queueTransaction");
-        producer.sendMessage(queue,"100");
+
+         producer.sendMessageWithTransaction(queue,"100");
+
+         Thread.sleep(10000);
     }
     @Test
     public void testQueueWithTransactionRollback(){
